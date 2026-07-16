@@ -9,6 +9,13 @@ tracks with a real 10-band equalizer, "Моя волна" AI radio, playlists an
 no server and no account. Clone and run locally to connect your own Yandex Music
 account for the real catalog.
 
+<p align="center">
+  <a href="https://lifeart.github.io/ya-namp/">
+    <img src="docs/img/screenshot.png" width="420"
+         alt="ya-namp — a Winamp-style Yandex Music player (demo mode)" />
+  </a>
+</p>
+
 Green-LCD marquee, spectrum analyzer, chunky transport, a playlist editor, and a
 working Web Audio equalizer — driven by the real Yandex Music API, with a fully
 offline **demo mode** so it runs end-to-end without any credentials.
@@ -18,6 +25,56 @@ offline **demo mode** so it runs end-to-end without any credentials.
 ├─ server ─┤   Express + TS: Yandex proxy, streaming, demo audio
 └─ client ─┘   Vite + TS: the Winamp UI (vanilla, no framework)
 ```
+
+## Download & install
+
+Just want to run it? Grab a **prebuilt binary** or the **container image** — no
+Node and no `npm install` required. Both are produced automatically for every
+release (a `vX.Y.Z` tag push runs
+[`.github/workflows/release.yml`](./.github/workflows/release.yml)).
+
+### Prebuilt binary (no Node install)
+
+Download the archive for your OS from the
+[**Releases**](https://github.com/lifeart/ya-namp/releases) page, extract it, and
+run the binary:
+
+```bash
+# macOS (arm64) / Linux (x64): extract the .tar.gz, then
+./ya-namp/server/dist/ya-namp
+# Windows (x64): extract the .zip, then
+ya-namp\server\dist\ya-namp.exe
+```
+
+Then open **http://localhost:8058** — it boots in offline **demo mode**. For your
+real Yandex catalog, pass `YANDEX_TOKEN=...` (or drop a `.env` containing
+`YANDEX_TOKEN=...` next to the binary, at `ya-namp/.env`):
+
+```bash
+YANDEX_TOKEN=... ./ya-namp/server/dist/ya-namp   # Windows: set YANDEX_TOKEN=... first
+```
+
+These are [Node SEA](https://nodejs.org/api/single-executable-applications.html)
+executables and are **per-OS** — macOS **arm64**, Linux **x64**, Windows **x64**
+(SEA can't cross-compile). Keep the whole extracted `ya-namp/` folder together:
+the binary serves the SPA from the `client/dist/` shipped alongside it.
+
+### Container image (ghcr.io)
+
+Pull the prebuilt multi-arch image (`linux/amd64` + `linux/arm64`) from GitHub
+Container Registry:
+
+```bash
+docker pull ghcr.io/lifeart/ya-namp:latest
+docker run -d -p 8058:8058 ghcr.io/lifeart/ya-namp:latest
+# real account:  add  -e YANDEX_TOKEN=...
+# open http://localhost:8058
+```
+
+`latest` tracks the newest release tag; specific versions are tagged `X.Y.Z` and
+`X.Y`. After the first publish the package may need to be flipped to **public**
+once (repo → **Packages** → *ya-namp* → *Package settings* → change visibility)
+before anonymous `docker pull` works.
 
 ## Run it
 
@@ -106,6 +163,10 @@ signature flow.
 
 ### Docker / Podman (Synology-ready)
 
+A prebuilt image is published to **ghcr.io** on every release — see
+[Download & install](#container-image-ghcrio) to just `docker pull` it. The steps
+below build it yourself.
+
 The app packages into a small `node:22-alpine` image (one bundled server file +
 the built SPA, **no `node_modules`**) listening on **port 8058**, runnable as
 root — which is how Synology DSM starts containers.
@@ -123,7 +184,9 @@ setup, the `localhost/` prefix note): **[docs/deploy.md](./docs/deploy.md)**.
 
 ### Single binary (no Node install)
 
-Ship ya-namp as a self-contained executable via Node 22 SEA:
+Prebuilt binaries for macOS/Linux/Windows are attached to every
+[release](#prebuilt-binary-no-node-install) — grab one instead of building. To
+produce your own, ship ya-namp as a self-contained executable via Node 22 SEA:
 
 ```bash
 npm run build:binary    # → dist/ya-namp/server/dist/ya-namp (+ client/dist alongside)

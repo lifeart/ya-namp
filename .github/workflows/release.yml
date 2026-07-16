@@ -1,0 +1,135 @@
+name: Release
+
+# Cut a release by pushing a version tag, e.g.:
+#   git tag v0.1.0 && git push origin v0.1.0
+#
+# This builds a self-contained SEA binary per OS (macOS arm64 / Linux x64 /
+# Windows x64), attaches the archives to the GitHub Release, and builds + pushes
+# the container image to GitHub Container Registry (ghcr.io).
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version/tag to release (e.g. v0.1.0). Dispatch against that tag ref.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Per-OS self-contained binaries. SEA cannot cross-compile, so each target is
+  # built on its own runner and the whole dist/ya-namp/ folder is archived.
+  # ---------------------------------------------------------------------------
+  binaries:
+    name: Binary (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+          - os: macos-latest
+            target: macos-arm64
+          - os: windows-latest
+            target: windows-x64
+    env:
+      # Tag pushes: github.ref_name is the tag (e.g. v0.1.0).
+      # Manual runs: use the `version` input (dispatch against the tag ref).
+      VERSION: ${{ github.event.inputs.version || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build self-contained binary
+        run: npm run build:binary
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        id: pkg_unix
+        shell: bash
+        run: |
+          asset="ya-namp-${VERSION}-${{ matrix.target }}.tar.gz"
+          tar -czf "$asset" -C dist ya-namp
+          echo "asset=$asset" >> "$GITHUB_OUTPUT"
+          ls -la "$asset"
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        id: pkg_win
+        shell: pwsh
+        run: |
+          $asset = "ya-namp-$env:VERSION-${{ matrix.target }}.zip"
+          Compress-Archive -Path dist/ya-namp -DestinationPath $asset -Force
+          "asset=$asset" >> $env:GITHUB_OUTPUT
+          Get-Item $asset | Select-Object Name, Length
+
+      - name: Upload archive to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          files: ${{ steps.pkg_unix.outputs.asset || steps.pkg_win.outputs.asset }}
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          draft: false
+
+  # ---------------------------------------------------------------------------
+  # Container image → GitHub Container Registry (ghcr.io).
+  # ---------------------------------------------------------------------------
+  image:
+    name: Container image (ghcr.io)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # QEMU + Buildx enable the linux/arm64 cross-build below.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          # metadata-action lowercases the image name automatically.
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # arm64 is built under QEMU emulation (slower but works). If it ever
+          # gets too slow/fragile, drop to `platforms: linux/amd64`.
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
