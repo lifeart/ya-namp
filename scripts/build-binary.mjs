@@ -46,7 +46,11 @@ const BIN = path.join(OUT, 'server', 'dist', isWin ? 'ya-namp.exe' : 'ya-namp');
 
 function run(cmd, args, opts = {}) {
   console.log(`  $ ${cmd} ${args.join(' ')}`);
-  execFileSync(cmd, args, { stdio: 'inherit', cwd: ROOT, ...opts });
+  // On Windows, `npm` and the `esbuild.cmd` shim are batch scripts — Node 22
+  // won't spawn a .cmd without a shell (spawnSync ENOENT otherwise). The node
+  // binary itself (process.execPath) runs directly.
+  const shell = isWin && cmd !== process.execPath;
+  execFileSync(cmd, args, { stdio: 'inherit', cwd: ROOT, shell, ...opts });
 }
 
 function step(msg) {
