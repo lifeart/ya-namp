@@ -90,12 +90,43 @@ body {
 /* Narrow width (mobile PWA or a shrunk PiP window): let transport buttons share
    the row and shrink instead of overflowing. */
 @media (max-width: 480px) {
+  /* Fixed-width chrome would push the layout past the screen — clip any residual
+     overflow (box-shadows etc.) so the page never scrolls sideways. */
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
   .transport-row {
     gap: 2px;
   }
   .transport-row .t-btn {
     flex: 1 1 0;
     min-width: 30px;
+  }
+
+  /* The decorative OAIDV column and the "YANDEX · <login>" LED/label only eat
+     width on a phone — drop them (the latter frees the search field).
+     `.win .clutter` (0,2,0) outranks the base `.clutter { display:flex }` rule,
+     which is defined later in this file and would otherwise win the cascade. */
+  .win .clutter,
+  #mode-led,
+  .mode-label {
+    display: none;
+  }
+
+  /* Mixer row: volume flexes to fill; balance + knob labels drop (secondary). */
+  .mixer-row {
+    gap: 6px;
+  }
+  .mixer-row .knob-label,
+  input[type='range'].small-range.bal {
+    display: none;
+  }
+  input[type='range'].small-range.vol {
+    flex: 1;
+    width: auto;
+    min-width: 0;
   }
 }
 
