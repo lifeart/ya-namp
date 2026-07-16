@@ -65,6 +65,11 @@ body {
   display: none;
 }
 
+/* In picture-in-picture the native window has its own top-bar, so hide ours. */
+.main-win.in-pip .titlebar {
+  display: none;
+}
+
 /* Shown in the tab while the main window is popped out to picture-in-picture. */
 .pip-placeholder {
   width: 550px;

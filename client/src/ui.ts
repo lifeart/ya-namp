@@ -691,10 +691,16 @@ export function initUI(player: Player): void {
 
   function restoreFromPip(): void {
     if (pipPlaceholder && mainWin) pipPlaceholder.replaceWith(mainWin);
+    mainWin?.classList.remove('in-pip');
     pipPlaceholder = null;
     pipWindow = null;
     pipBtn.classList.remove('lit');
     shadeBtn.classList.remove('active');
+  }
+
+  function pipTitle(): string {
+    const t = player.currentTrack;
+    return t ? `${t.artist} - ${t.title} · ya-namp` : 'ya-namp — player';
   }
 
   async function togglePip(): Promise<void> {
@@ -707,20 +713,28 @@ export function initUI(player: Player): void {
       return;
     }
     if (!mainWin) return;
+    // Size the window to the player minus the titlebar we hide in PiP, so it
+    // sits edge-to-edge with no padding.
+    const rect = mainWin.getBoundingClientRect();
     try {
-      pipWindow = await docPip.requestWindow({ width: 574, height: 316 });
+      pipWindow = await docPip.requestWindow({
+        width: Math.ceil(rect.width),
+        height: Math.max(140, Math.ceil(rect.height) - 27),
+      });
     } catch (err) {
       setStatus(`picture-in-picture failed: ${errorMessage(err)}`, 'error');
       return;
     }
     copyStylesInto(pipWindow.document);
-    const body = pipWindow.document.body;
-    body.style.cssText = 'margin:0;background:#0d0d13;display:flex;justify-content:center';
+    pipWindow.document.title = pipTitle();
+    // Edge-to-edge: no body padding/margin, no scrollbars.
+    pipWindow.document.body.style.cssText = 'margin:0;padding:0;overflow:hidden;background:#0d0d13';
+    mainWin.classList.add('in-pip'); // hides the HTML titlebar (native chrome covers it)
     pipPlaceholder = document.createElement('div');
     pipPlaceholder.className = 'pip-placeholder';
     pipPlaceholder.textContent = '▸ player is in picture-in-picture — close that window to bring it back';
     mainWin.replaceWith(pipPlaceholder);
-    body.appendChild(mainWin);
+    pipWindow.document.body.appendChild(mainWin);
     pipBtn.classList.add('lit');
     shadeBtn.classList.add('active');
     pipWindow.addEventListener('pagehide', restoreFromPip);
@@ -893,6 +907,7 @@ export function initUI(player: Player): void {
     highlightCurrent();
     renderLikeButton();
     updateMediaSession(track);
+    if (pipWindow) pipWindow.document.title = `${track.artist} - ${track.title} · ya-namp`;
     if (waveActive) {
       waveFeedback('trackStarted');
       void prefetchWaveIfNeeded();
