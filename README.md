@@ -1,10 +1,17 @@
 # ya-namp
 
-A **Yandex Music** player with a classic **Winamp** skin, on the web.
+A **Yandex Music** player wearing a classic **Winamp** skin, on the web.
 
-Green-LCD marquee, spectrum analyzer, chunky transport, a playlist editor —
-driven by the real Yandex Music API, with a fully offline **demo mode** so it
-runs end-to-end without any credentials.
+### ▶︎ [Live demo → **lifeart.github.io/ya-namp**](https://lifeart.github.io/ya-namp/)
+
+The live demo runs **entirely in your browser** — six procedurally-synthesized
+tracks with a real 10-band equalizer, "Моя волна" AI radio, playlists and search,
+no server and no account. Clone and run locally to connect your own Yandex Music
+account for the real catalog.
+
+Green-LCD marquee, spectrum analyzer, chunky transport, a playlist editor, and a
+working Web Audio equalizer — driven by the real Yandex Music API, with a fully
+offline **demo mode** so it runs end-to-end without any credentials.
 
 ```
 ┌─ shared ─┐   the typed API contract (shared/types.ts)
@@ -126,12 +133,31 @@ npm run build:binary    # → dist/ya-namp/server/dist/ya-namp (+ client/dist al
 Trade-offs, the Bun `--compile` cross-compile path, and the one small server
 change for a truly single *file*: **[docs/single-binary.md](./docs/single-binary.md)**.
 
+### GitHub Pages (static, server-less demo)
+
+`npm run build:pages` produces a static `client/dist` (base `/ya-namp/`) with **no
+backend** — the demo audio is synthesized in the browser and every `/api/*` call
+is served by a client-side stub, so the full demo (playback, seek, My Wave, EQ,
+playlists) works as pure static files. A push to `main`/`master` auto-deploys it
+to Pages via [`.github/workflows/pages.yml`](./.github/workflows/pages.yml).
+The Yandex-account features are hidden in this build (they need the local server).
+
+## Disclaimer
+
+ya-namp is an **unofficial**, personal/educational project — **not affiliated with,
+endorsed by, or connected to Yandex**. It talks to Yandex Music's private API using
+a token *you* supply for *your own* account; full-quality playback needs an active
+**Yandex Plus** subscription, and your use is subject to Yandex Music's Terms of
+Service. No credentials are bundled or committed — `.env` is gitignored, and the
+GitHub Pages demo contains only in-browser synthesized audio.
+
 ## Scripts
 
 - `npm run dev` — server + client with hot reload
 - `npm run build` — build the client to `client/dist`
 - `npm run build:server` — bundle the server to `server/dist/index.mjs` (esbuild, express baked in)
 - `npm run build:all` — build the client **and** the server bundle
+- `npm run build:pages` — build the static, server-less demo for GitHub Pages
 - `npm start` — build the client and serve it from the server (single origin)
 - `npm run image:build` — build the container image + a Synology-importable tar (`dist/ya-namp.tar`)
 - `npm run build:binary` — build a self-contained SEA executable (`dist/ya-namp/…`)
