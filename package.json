@@ -1,6 +1,6 @@
 {
   "name": "ya-namp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Yandex Music player with a classic Winamp UI",
   "type": "module",
