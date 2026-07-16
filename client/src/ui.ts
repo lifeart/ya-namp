@@ -658,6 +658,7 @@ export function initUI(player: Player): void {
   // because the audio element is detached and the DOM nodes (with their
   // listeners) are just re-parented.
   const pipBtn = el<HTMLButtonElement>('btn-pip');
+  const shadeBtn = el('tb-shade'); // the Winamp "windowshade/collapse" titlebar button
   const mainWin = document.querySelector<HTMLElement>('.main-win');
   interface DocumentPiP {
     requestWindow(opts: { width: number; height: number }): Promise<Window>;
@@ -693,6 +694,7 @@ export function initUI(player: Player): void {
     pipPlaceholder = null;
     pipWindow = null;
     pipBtn.classList.remove('lit');
+    shadeBtn.classList.remove('active');
   }
 
   async function togglePip(): Promise<void> {
@@ -720,9 +722,18 @@ export function initUI(player: Player): void {
     mainWin.replaceWith(pipPlaceholder);
     body.appendChild(mainWin);
     pipBtn.classList.add('lit');
+    shadeBtn.classList.add('active');
     pipWindow.addEventListener('pagehide', restoreFromPip);
   }
   pipBtn.addEventListener('click', () => void togglePip());
+  // The Winamp collapse (windowshade) titlebar button also toggles PiP.
+  shadeBtn.addEventListener('click', () => void togglePip());
+  shadeBtn.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      void togglePip();
+    }
+  });
 
   // --------------------------------------------------------- OS media session
   // Lets OS media keys / lock-screen / headset controls drive the player.

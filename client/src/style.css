@@ -161,6 +161,24 @@ body {
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
+/* The collapse (windowshade) button toggles picture-in-picture. */
+.tb-btn.shade {
+  cursor: pointer;
+}
+
+.tb-btn.shade:hover {
+  filter: brightness(1.35);
+}
+
+.tb-btn.shade.active {
+  background: linear-gradient(180deg, #00d000, #007a00);
+  box-shadow: 0 0 6px rgba(0, 232, 0, 0.7);
+}
+
+.tb-btn.shade.active::after {
+  background: #063806;
+}
+
 /* -------------------------------------------------------------- LCD panel */
 
 .display-row {
