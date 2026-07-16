@@ -65,6 +65,23 @@ body {
   display: none;
 }
 
+/* Shown in the tab while the main window is popped out to picture-in-picture. */
+.pip-placeholder {
+  width: 550px;
+  padding: 46px 20px;
+  text-align: center;
+  font: bold 11px var(--ui-font);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--lcd-dim);
+  background: linear-gradient(180deg, var(--chrome-light), var(--chrome));
+  border: 2px solid;
+  border-color: var(--hi) var(--lo) var(--lo) var(--hi);
+  box-shadow:
+    0 0 0 1px #000,
+    0 14px 34px rgba(0, 0, 0, 0.55);
+}
+
 /* --------------------------------------------------------------- titlebar */
 
 .titlebar {

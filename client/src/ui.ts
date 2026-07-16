@@ -652,6 +652,105 @@ export function initUI(player: Player): void {
   buildEq();
   eqOnBtn.addEventListener('click', () => setEqOn(!player.eqOn));
 
+  // ------------------------------------------------------- picture-in-picture
+  // Document Picture-in-Picture (Chromium): pop the whole player window into a
+  // floating always-on-top window. All controls + the visualizer keep working
+  // because the audio element is detached and the DOM nodes (with their
+  // listeners) are just re-parented.
+  const pipBtn = el<HTMLButtonElement>('btn-pip');
+  const mainWin = document.querySelector<HTMLElement>('.main-win');
+  interface DocumentPiP {
+    requestWindow(opts: { width: number; height: number }): Promise<Window>;
+  }
+  const docPip = (window as unknown as { documentPictureInPicture?: DocumentPiP })
+    .documentPictureInPicture;
+  let pipWindow: Window | null = null;
+  let pipPlaceholder: HTMLElement | null = null;
+
+  function copyStylesInto(doc: Document): void {
+    for (const sheet of Array.from(document.styleSheets)) {
+      try {
+        const cssText = Array.from(sheet.cssRules)
+          .map((r) => r.cssText)
+          .join('\n');
+        const style = doc.createElement('style');
+        style.textContent = cssText;
+        doc.head.appendChild(style);
+      } catch {
+        // Cross-origin stylesheet — can't read its rules, so link it instead.
+        if (sheet.href) {
+          const link = doc.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = sheet.href;
+          doc.head.appendChild(link);
+        }
+      }
+    }
+  }
+
+  function restoreFromPip(): void {
+    if (pipPlaceholder && mainWin) pipPlaceholder.replaceWith(mainWin);
+    pipPlaceholder = null;
+    pipWindow = null;
+    pipBtn.classList.remove('lit');
+  }
+
+  async function togglePip(): Promise<void> {
+    if (!docPip) {
+      setStatus('picture-in-picture needs a Chromium browser (Document PiP)', 'error');
+      return;
+    }
+    if (pipWindow) {
+      pipWindow.close();
+      return;
+    }
+    if (!mainWin) return;
+    try {
+      pipWindow = await docPip.requestWindow({ width: 574, height: 316 });
+    } catch (err) {
+      setStatus(`picture-in-picture failed: ${errorMessage(err)}`, 'error');
+      return;
+    }
+    copyStylesInto(pipWindow.document);
+    const body = pipWindow.document.body;
+    body.style.cssText = 'margin:0;background:#0d0d13;display:flex;justify-content:center';
+    pipPlaceholder = document.createElement('div');
+    pipPlaceholder.className = 'pip-placeholder';
+    pipPlaceholder.textContent = '▸ player is in picture-in-picture — close that window to bring it back';
+    mainWin.replaceWith(pipPlaceholder);
+    body.appendChild(mainWin);
+    pipBtn.classList.add('lit');
+    pipWindow.addEventListener('pagehide', restoreFromPip);
+  }
+  pipBtn.addEventListener('click', () => void togglePip());
+
+  // --------------------------------------------------------- OS media session
+  // Lets OS media keys / lock-screen / headset controls drive the player.
+  function initMediaSession(): void {
+    if (!('mediaSession' in navigator)) return;
+    const ms = navigator.mediaSession;
+    ms.setActionHandler('play', () => player.play());
+    ms.setActionHandler('pause', () => player.pause());
+    ms.setActionHandler('previoustrack', () => userPrev());
+    ms.setActionHandler('nexttrack', () => userNext());
+    try {
+      ms.setActionHandler('seekto', (d) => {
+        if (typeof d.seekTime === 'number') player.seekTo(d.seekTime);
+      });
+    } catch (err) {
+      console.warn('[ya-namp] mediaSession seekto unsupported:', errorMessage(err));
+    }
+  }
+  function updateMediaSession(track: { title: string; artist: string; album: string | null }): void {
+    if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.title,
+      artist: track.artist,
+      album: track.album ?? '',
+    });
+  }
+  initMediaSession();
+
   // ------------------------------------------------------- "Моя волна" / wave
   function setWaveActive(active: boolean): void {
     waveActive = active;
@@ -766,6 +865,10 @@ export function initUI(player: Player): void {
     lampStereo.classList.toggle('lit', state !== 'stopped');
     const khz = player.sampleRateKhz;
     if (khz !== null) khzEl.textContent = String(khz);
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState =
+        state === 'playing' ? 'playing' : state === 'paused' ? 'paused' : 'none';
+    }
     updateTime();
   });
 
@@ -778,6 +881,7 @@ export function initUI(player: Player): void {
     document.title = `${track.artist} - ${track.title} · ya-namp`;
     highlightCurrent();
     renderLikeButton();
+    updateMediaSession(track);
     if (waveActive) {
       waveFeedback('trackStarted');
       void prefetchWaveIfNeeded();
